@@ -105,65 +105,98 @@ struct UsageTimelineProvider: TimelineProvider {
 struct ClaudeMascot: View {
     let pixelSize: CGFloat
 
-    private let bodyColour = Color(red: 0.80, green: 0.55, blue: 0.40)
-    private let darkColour = Color(red: 0.20, green: 0.15, blue: 0.12)
+    private let body_ = Color(red: 0.80, green: 0.55, blue: 0.40)
+    private let eye_ = Color(red: 0.15, green: 0.12, blue: 0.10)
+
+    // 10 columns x 10 rows grid
+    // 0 = empty, 1 = body, 2 = eye
+    private let grid: [[Int]] = [
+        [0,1,1,1,1,1,1,1,1,0],  // row 0: head top
+        [0,1,1,1,1,1,1,1,1,0],  // row 1: head
+        [0,1,1,1,1,1,1,1,1,0],  // row 2: head
+        [1,1,1,1,1,1,1,1,1,1],  // row 3: ears
+        [1,1,1,2,1,1,2,1,1,1],  // row 4: ears + eyes
+        [0,1,1,1,1,1,1,1,1,0],  // row 5: body
+        [0,1,1,1,1,1,1,1,1,0],  // row 6: body
+        [0,1,1,1,1,1,1,1,1,0],  // row 7: body
+        [0,1,1,0,0,0,0,1,1,0],  // row 8: legs
+        [0,1,1,0,0,0,0,1,1,0],  // row 9: legs
+    ]
 
     var body: some View {
-        Canvas { context, size in
+        Canvas { context, _ in
             let p = pixelSize
-            let centreX = size.width / 2
-
-            func pixel(_ col: Int, _ row: Int, _ colour: Color) {
-                let x = centreX + CGFloat(col) * p
-                let y = CGFloat(row) * p
-                context.fill(Path(CGRect(x: x, y: y, width: p, height: p)), with: .color(colour))
+            for (row, cols) in grid.enumerated() {
+                for (col, val) in cols.enumerated() {
+                    guard val != 0 else { continue }
+                    let colour = val == 2 ? eye_ : body_
+                    let rect = CGRect(x: CGFloat(col) * p, y: CGFloat(row) * p, width: p, height: p)
+                    context.fill(Path(rect), with: .color(colour))
+                }
             }
-
-            // Sparkle dots above head (row 0-1)
-            pixel(-1, 0, .white.opacity(0.5))
-            pixel(1, 0, .white.opacity(0.3))
-            pixel(0, 1, .white.opacity(0.4))
-            pixel(2, 1, .white.opacity(0.5))
-            pixel(-2, 1, .white.opacity(0.3))
-
-            // Head top (row 2)
-            for c in -2...1 { pixel(c, 2, bodyColour) }
-
-            // Head + ears (row 3)
-            pixel(-4, 3, bodyColour) // left ear
-            pixel(-3, 3, bodyColour)
-            for c in -2...1 { pixel(c, 3, bodyColour) }
-            pixel(2, 3, bodyColour)
-            pixel(3, 3, bodyColour)  // right ear
-
-            // Head with eyes (row 4)
-            pixel(-3, 4, bodyColour) // left ear
-            for c in -2...1 { pixel(c, 4, bodyColour) }
-            pixel(2, 4, bodyColour)  // right ear
-            // Eyes
-            pixel(-1, 4, darkColour)
-            pixel(0, 4, darkColour)
-
-            // Body (row 5)
-            for c in -2...1 { pixel(c, 5, bodyColour) }
-
-            // Body with nose (row 6)
-            for c in -2...1 { pixel(c, 6, bodyColour) }
-            pixel(-1, 6, bodyColour.opacity(0.7))
-            pixel(0, 6, bodyColour.opacity(0.7))
-
-            // Legs (row 7)
-            pixel(-2, 7, bodyColour)
-            pixel(-1, 7, bodyColour)
-            pixel(0, 7, bodyColour)
-            pixel(1, 7, bodyColour)
-
-            // Feet (row 8)
-            pixel(-2, 8, bodyColour)
-            pixel(1, 8, bodyColour)
         }
-        .frame(width: pixelSize * 8, height: pixelSize * 9)
+        .frame(width: pixelSize * 10, height: pixelSize * 10)
     }
+}
+
+// MARK: - Shared Helpers
+
+func nextChangeDescription(at date: Date) -> String {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+
+    let weekday = calendar.component(.weekday, from: date)
+    let hour = calendar.component(.hour, from: date)
+    let isWeekend = weekday == 1 || weekday == 7
+
+    func timeUntil(from: Date, to: Date) -> String {
+        let interval = to.timeIntervalSince(from)
+        let hours = Int(interval) / 3600
+        let minutes = (Int(interval) % 3600) / 60
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        return "\(minutes)m"
+    }
+
+    if isWeekend {
+        let daysUntilMonday = weekday == 7 ? 2 : 1
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = 12; components.minute = 0
+        if let base = calendar.date(from: components) {
+            let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: base)!
+            return timeUntil(from: date, to: target)
+        }
+    } else if hour >= 12 && hour < 18 {
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = 18; components.minute = 0
+        if let target = calendar.date(from: components) {
+            return timeUntil(from: date, to: target)
+        }
+    } else if hour < 12 {
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = 12; components.minute = 0
+        if let target = calendar.date(from: components) {
+            return timeUntil(from: date, to: target)
+        }
+    } else {
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: date)!
+        let tomorrowWeekday = calendar.component(.weekday, from: tomorrow)
+        if tomorrowWeekday == 1 || tomorrowWeekday == 7 {
+            let daysUntilMonday = tomorrowWeekday == 7 ? 3 : 2
+            var components = calendar.dateComponents([.year, .month, .day], from: date)
+            components.hour = 12; components.minute = 0
+            if let base = calendar.date(from: components) {
+                let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: base)!
+                return timeUntil(from: date, to: target)
+            }
+        } else {
+            var components = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+            components.hour = 12; components.minute = 0
+            if let target = calendar.date(from: components) {
+                return timeUntil(from: date, to: target)
+            }
+        }
+    }
+    return ""
 }
 
 // MARK: - Widget Views
@@ -175,33 +208,38 @@ struct SmallWidgetView: View {
         ZStack {
             Rectangle().fill(entry.status.colour.gradient)
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 13, weight: .semibold))
+            VStack(spacing: 4) {
+                HStack {
                     Text("Claude")
                         .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Spacer()
                 }
-                .foregroundStyle(.white.opacity(0.85))
+
+                Spacer()
+
+                ClaudeMascot(pixelSize: 4)
+                    .opacity(0.5)
 
                 Spacer()
 
                 HStack {
-                    Spacer()
-                    ClaudeMascot(pixelSize: 5)
-                        .opacity(0.6)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.status.label)
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+
+                        HStack(spacing: 4) {
+                            Text("Changes in")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.6))
+                            Text(nextChangeDescription(at: entry.date))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.85))
+                        }
+                    }
                     Spacer()
                 }
-
-                Spacer()
-
-                Text(entry.status.label)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-
-                Text(entry.status.subtitle)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
             }
             .padding(14)
         }
@@ -212,94 +250,15 @@ struct SmallWidgetView: View {
 struct MediumWidgetView: View {
     let entry: UsageEntry
 
-    private var nextChangeDescription: String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-
-        let now = entry.date
-        let weekday = calendar.component(.weekday, from: now)
-        let hour = calendar.component(.hour, from: now)
-        let isWeekend = weekday == 1 || weekday == 7
-
-        if isWeekend {
-            // Find next Monday 12:00 UTC
-            let daysUntilMonday: Int
-            if weekday == 7 { daysUntilMonday = 2 }
-            else { daysUntilMonday = 1 }
-            var components = calendar.dateComponents([.year, .month, .day], from: now)
-            components.hour = 12
-            components.minute = 0
-            if let mondayNoon = calendar.date(from: components) {
-                let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: mondayNoon)!
-                return formatTimeUntil(from: now, to: target)
-            }
-        } else if hour >= 12 && hour < 18 {
-            // Peak: changes at 18:00 UTC
-            var components = calendar.dateComponents([.year, .month, .day], from: now)
-            components.hour = 18
-            components.minute = 0
-            if let target = calendar.date(from: components) {
-                return formatTimeUntil(from: now, to: target)
-            }
-        } else {
-            // Off-peak weekday
-            if hour < 12 {
-                var components = calendar.dateComponents([.year, .month, .day], from: now)
-                components.hour = 12
-                components.minute = 0
-                if let target = calendar.date(from: components) {
-                    return formatTimeUntil(from: now, to: target)
-                }
-            } else {
-                // After 18:00, next change is tomorrow 12:00 or weekend
-                let tomorrow = calendar.date(byAdding: .day, value: 1, to: now)!
-                let tomorrowWeekday = calendar.component(.weekday, from: tomorrow)
-                if tomorrowWeekday == 1 || tomorrowWeekday == 7 {
-                    // Tomorrow is weekend, 2x continues — find Monday 12:00
-                    let daysUntilMonday = tomorrowWeekday == 7 ? 3 : 2
-                    var components = calendar.dateComponents([.year, .month, .day], from: now)
-                    components.hour = 12
-                    components.minute = 0
-                    if let base = calendar.date(from: components) {
-                        let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: base)!
-                        return formatTimeUntil(from: now, to: target)
-                    }
-                } else {
-                    var components = calendar.dateComponents([.year, .month, .day], from: tomorrow)
-                    components.hour = 12
-                    components.minute = 0
-                    if let target = calendar.date(from: components) {
-                        return formatTimeUntil(from: now, to: target)
-                    }
-                }
-            }
-        }
-        return ""
-    }
-
-    private func formatTimeUntil(from: Date, to: Date) -> String {
-        let interval = to.timeIntervalSince(from)
-        let hours = Int(interval) / 3600
-        let minutes = (Int(interval) % 3600) / 60
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        }
-        return "\(minutes)m"
-    }
-
     var body: some View {
         ZStack {
             Rectangle().fill(entry.status.colour.gradient)
 
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 13, weight: .semibold))
-                        Text("Claude")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .foregroundStyle(.white.opacity(0.85))
+                    Text("Claude")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
 
                     Spacer()
 
@@ -307,26 +266,20 @@ struct MediumWidgetView: View {
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
 
-                    Text(entry.status.subtitle)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                    HStack(spacing: 4) {
+                        Text("Changes in")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
+                        Text(nextChangeDescription(at: entry.date))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
                 }
 
                 Spacer()
 
-                VStack(spacing: 8) {
-                    ClaudeMascot(pixelSize: 5)
-                        .opacity(0.6)
-
-                    Spacer()
-
-                    Text("Changes in")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
-                    Text(nextChangeDescription)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                }
+                ClaudeMascot(pixelSize: 5)
+                    .opacity(0.5)
             }
             .padding(14)
         }
