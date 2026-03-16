@@ -10,9 +10,23 @@ enum UsageStatus {
 
     /// Peak hours are weekdays 12:00–18:00 UTC (= 5–11am PT / 12–6pm GMT).
     /// Outside peak hours and all weekends = 2x usage.
-    static func current(at date: Date = .now) -> UsageStatus {
+    /// Promotion runs until end of 2026-03-27 UTC.
+    private static let utc = TimeZone(identifier: "UTC") ?? .gmt
+
+    private static let promotionEnd: Date = {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.timeZone = utc
+        guard let date = calendar.date(from: DateComponents(year: 2026, month: 3, day: 28, hour: 0, minute: 0, second: 0)) else {
+            return .distantFuture
+        }
+        return date
+    }()
+
+    static func current(at date: Date = .now) -> UsageStatus {
+        if date >= promotionEnd { return .normalUsage }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = utc
 
         let weekday = calendar.component(.weekday, from: date)
         let hour = calendar.component(.hour, from: date)
@@ -27,7 +41,7 @@ enum UsageStatus {
     var label: String {
         switch self {
         case .doubleUsage: "2x Usage"
-        case .normalUsage: "Normal Usage"
+        case .normalUsage: "Normal"
         }
     }
 
@@ -88,7 +102,7 @@ struct UsageTimelineProvider: TimelineProvider {
 
         // Generate entries for the next 24 hours at each UTC boundary hour that matters
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
 
         // Start with current entry
         entries.append(UsageEntry(date: now, status: .current(at: now)))
@@ -110,20 +124,18 @@ struct UsageTimelineProvider: TimelineProvider {
                 components.hour = hour
                 components.minute = 0
                 components.second = 0
-                if let candidate = calendar.date(from: components) {
-                    let adjusted = calendar.date(byAdding: .day, value: dayOffset, to: candidate)!
-                    if adjusted > now {
-                        entries.append(UsageEntry(date: adjusted, status: .current(at: adjusted)))
-                    }
+                if let candidate = calendar.date(from: components),
+                   let adjusted = calendar.date(byAdding: .day, value: dayOffset, to: candidate),
+                   adjusted > now {
+                    entries.append(UsageEntry(date: adjusted, status: .current(at: adjusted)))
                 }
             }
         }
 
         entries.sort { $0.date < $1.date }
 
-        let timeline = Timeline(entries: entries, policy: .after(
-            calendar.date(byAdding: .hour, value: 2, to: now)!
-        ))
+        let refreshDate = calendar.date(byAdding: .hour, value: 2, to: now) ?? now.addingTimeInterval(7200)
+        let timeline = Timeline(entries: entries, policy: .after(refreshDate))
         completion(timeline)
     }
 }
@@ -132,6 +144,7 @@ struct UsageTimelineProvider: TimelineProvider {
 
 struct ClaudeMascot: View {
     let size: CGFloat
+    var isPeakHours: Bool = false
 
     private let bodyColour = Color(red: 0.80, green: 0.55, blue: 0.40)
     private let eyeColour = Color(red: 0.15, green: 0.12, blue: 0.10)
@@ -182,14 +195,23 @@ struct ClaudeMascot: View {
 
             let eyeStroke: CGFloat = 0.7 * s
             var leftEye = Path()
-            leftEye.move(to: CGPoint(x: 3.5 * s, y: 3.8 * s))
-            leftEye.addLine(to: CGPoint(x: 4.5 * s, y: 4.5 * s))
-            leftEye.addLine(to: CGPoint(x: 3.5 * s, y: 5.2 * s))
-
             var rightEye = Path()
-            rightEye.move(to: CGPoint(x: 10.5 * s, y: 3.8 * s))
-            rightEye.addLine(to: CGPoint(x: 9.5 * s, y: 4.5 * s))
-            rightEye.addLine(to: CGPoint(x: 10.5 * s, y: 5.2 * s))
+
+            if isPeakHours {
+                // Dash eyes: - on left, - on right
+                leftEye.move(to: CGPoint(x: 3.0 * s, y: 4.5 * s))
+                leftEye.addLine(to: CGPoint(x: 5.0 * s, y: 4.5 * s))
+                rightEye.move(to: CGPoint(x: 9.0 * s, y: 4.5 * s))
+                rightEye.addLine(to: CGPoint(x: 11.0 * s, y: 4.5 * s))
+            } else {
+                // Chevron eyes: > on left, < on right
+                leftEye.move(to: CGPoint(x: 3.5 * s, y: 3.8 * s))
+                leftEye.addLine(to: CGPoint(x: 4.5 * s, y: 4.5 * s))
+                leftEye.addLine(to: CGPoint(x: 3.5 * s, y: 5.2 * s))
+                rightEye.move(to: CGPoint(x: 10.5 * s, y: 3.8 * s))
+                rightEye.addLine(to: CGPoint(x: 9.5 * s, y: 4.5 * s))
+                rightEye.addLine(to: CGPoint(x: 10.5 * s, y: 5.2 * s))
+            }
 
             context.stroke(leftEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
             context.stroke(rightEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
@@ -202,7 +224,7 @@ struct ClaudeMascot: View {
 
 func nextChangeDescription(at date: Date) -> String {
     var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "UTC")!
+    calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
 
     let weekday = calendar.component(.weekday, from: date)
     let hour = calendar.component(.hour, from: date)
@@ -220,8 +242,8 @@ func nextChangeDescription(at date: Date) -> String {
         let daysUntilMonday = weekday == 7 ? 2 : 1
         var components = calendar.dateComponents([.year, .month, .day], from: date)
         components.hour = 12; components.minute = 0
-        if let base = calendar.date(from: components) {
-            let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: base)!
+        if let base = calendar.date(from: components),
+           let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: base) {
             return timeUntil(from: date, to: target)
         }
     } else if hour >= 12 && hour < 18 {
@@ -237,14 +259,14 @@ func nextChangeDescription(at date: Date) -> String {
             return timeUntil(from: date, to: target)
         }
     } else {
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: date)!
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: date) else { return "" }
         let tomorrowWeekday = calendar.component(.weekday, from: tomorrow)
         if tomorrowWeekday == 1 || tomorrowWeekday == 7 {
             let daysUntilMonday = tomorrowWeekday == 7 ? 3 : 2
             var components = calendar.dateComponents([.year, .month, .day], from: date)
             components.hour = 12; components.minute = 0
-            if let base = calendar.date(from: components) {
-                let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: base)!
+            if let base = calendar.date(from: components),
+               let target = calendar.date(byAdding: .day, value: daysUntilMonday, to: base) {
                 return timeUntil(from: date, to: target)
             }
         } else {
@@ -273,33 +295,35 @@ struct RefreshUsageIntent: AppIntent {
 // MARK: - Widget Views
 
 struct SmallWidgetView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let entry: UsageEntry
 
     var body: some View {
         ZStack {
-            Rectangle().fill(entry.status.backgroundGradient)
+            Rectangle().fill(
+                entry.status.isDouble
+                    ? AnyShapeStyle(entry.status.backgroundGradient)
+                    : AnyShapeStyle(colorScheme == .dark ? Color.black : Color.white)
+            )
 
             VStack(spacing: 4) {
                 HStack {
                     Text("Claude")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
                     Spacer()
                     Button(intent: RefreshUsageIntent()) {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(entry.status.isDouble ? .white.opacity(0.5) : .secondary)
                     }
                     .buttonStyle(.plain)
                 }
 
                 Spacer()
 
-                Button(intent: RefreshUsageIntent()) {
-                    ClaudeMascot(size: 56)
-                        .opacity(0.5)
-                }
-                .buttonStyle(.plain)
+                ClaudeMascot(size: 56, isPeakHours: !entry.status.isDouble)
+                    .opacity(0.5)
 
                 Spacer()
 
@@ -307,16 +331,16 @@ struct SmallWidgetView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(entry.status.label)
                             .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(entry.status.isDouble ? .white : .primary)
                             .invalidatableContent()
 
                         HStack(spacing: 4) {
                             Text("Changes in ~")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.6))
+                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.6) : .secondary)
                             Text(nextChangeDescription(at: entry.date))
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.85))
+                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
                                 .invalidatableContent()
                         }
                     }
@@ -330,22 +354,27 @@ struct SmallWidgetView: View {
 }
 
 struct MediumWidgetView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let entry: UsageEntry
 
     var body: some View {
         ZStack {
-            Rectangle().fill(entry.status.backgroundGradient)
+            Rectangle().fill(
+                entry.status.isDouble
+                    ? AnyShapeStyle(entry.status.backgroundGradient)
+                    : AnyShapeStyle(colorScheme == .dark ? Color.black : Color.white)
+            )
 
             VStack {
                 HStack {
                     Text("Claude")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
                     Spacer()
                     Button(intent: RefreshUsageIntent()) {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(entry.status.isDouble ? .white.opacity(0.5) : .secondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -356,27 +385,24 @@ struct MediumWidgetView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(entry.status.label)
                             .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(entry.status.isDouble ? .white : .primary)
                             .invalidatableContent()
 
                         HStack(spacing: 4) {
                             Text("Changes in ~")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.6))
+                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.6) : .secondary)
                             Text(nextChangeDescription(at: entry.date))
                                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.85))
+                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
                                 .invalidatableContent()
                         }
                     }
 
                     Spacer()
 
-                    Button(intent: RefreshUsageIntent()) {
-                        ClaudeMascot(size: 70)
-                            .opacity(0.5)
-                    }
-                    .buttonStyle(.plain)
+                    ClaudeMascot(size: 70, isPeakHours: !entry.status.isDouble)
+                        .opacity(0.5)
                 }
             }
             .padding(14)
