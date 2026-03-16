@@ -108,19 +108,19 @@ struct ClaudeMascot: View {
     private let body_ = Color(red: 0.80, green: 0.55, blue: 0.40)
     private let eye_ = Color(red: 0.15, green: 0.12, blue: 0.10)
 
-    // 10 columns x 10 rows grid
+    // 12 columns x 10 rows grid
     // 0 = empty, 1 = body, 2 = eye
     private let grid: [[Int]] = [
-        [0,1,1,1,1,1,1,1,1,0],  // row 0: head top
-        [0,1,1,1,1,1,1,1,1,0],  // row 1: head
-        [0,1,1,1,1,1,1,1,1,0],  // row 2: head
-        [1,1,1,1,1,1,1,1,1,1],  // row 3: ears
-        [1,1,1,2,1,1,2,1,1,1],  // row 4: ears + eyes
-        [0,1,1,1,1,1,1,1,1,0],  // row 5: body
-        [0,1,1,1,1,1,1,1,1,0],  // row 6: body
-        [0,1,1,1,1,1,1,1,1,0],  // row 7: body
-        [0,1,1,0,0,0,0,1,1,0],  // row 8: legs
-        [0,1,1,0,0,0,0,1,1,0],  // row 9: legs
+        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 0: head top
+        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 1: head
+        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 2: head
+        [1,1,1,1,1,1,1,1,1,1,1,1],  // row 3: ears
+        [1,1,1,2,1,1,1,1,2,1,1,1],  // row 4: ears + eyes
+        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 5: body
+        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 6: body
+        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 7: body
+        [0,0,1,1,0,1,1,0,1,1,0,0],  // row 8: 4 legs
+        [0,0,1,1,0,1,1,0,1,1,0,0],  // row 9: 4 legs
     ]
 
     var body: some View {
@@ -135,7 +135,7 @@ struct ClaudeMascot: View {
                 }
             }
         }
-        .frame(width: pixelSize * 10, height: pixelSize * 10)
+        .frame(width: pixelSize * 12, height: pixelSize * 10)
     }
 }
 
