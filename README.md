@@ -6,7 +6,7 @@ Claude Pro and Team plans get double the usage allowance outside peak hours (wee
 
 ## Features
 
-- **Live status** — shows whether 2x usage or peak hours are active right now
+- **Usage status** — shows whether 2x usage or peak hours are active based on the current time
 - **Countdown timer** — tells you exactly when the next status change happens
 - **Home screen widgets** — small and medium sizes with a rainbow gradient during 2x periods
 - **Lock screen widgets** — circular, rectangular, and inline variants
@@ -22,9 +22,7 @@ Claude Pro and Team plans get double the usage allowance outside peak hours (wee
 
 ## Demo
 
-https://github.com/user-attachments/assets/demo.mp4
-
-> If the video does not render above, you can find it at [assets/video/demo.mp4](assets/video/demo.mp4).
+https://github.com/user-attachments/assets/4d7bcf3e-1ee2-4cf1-9026-c23360504eea
 
 ## How It Works
 
@@ -37,6 +35,8 @@ The app determines usage status based on the current time in UTC:
 | Weekends (all day) | 2x Usage |
 
 Peak hours are also displayed in your local timezone within the app.
+
+> **Note:** Due to iOS widget limitations, the widget may not update instantly. Press the refresh button on the widget to get the latest status.
 
 ## Requirements
 
