@@ -37,10 +37,28 @@ enum UsageStatus {
         }
     }
 
-    var colour: Color {
+    var backgroundGradient: LinearGradient {
         switch self {
-        case .doubleUsage: Color(red: 0.18, green: 0.74, blue: 0.42)
-        case .normalUsage: Color(red: 0.85, green: 0.47, blue: 0.34)
+        case .doubleUsage:
+            // Ultrathink rainbow colours
+            LinearGradient(
+                colors: [
+                    Color(red: 0.83, green: 0.27, blue: 0.17), // red
+                    Color(red: 0.91, green: 0.52, blue: 0.17), // orange
+                    Color(red: 0.91, green: 0.77, blue: 0.17), // yellow
+                    Color(red: 0.36, green: 0.67, blue: 0.29), // green
+                    Color(red: 0.29, green: 0.56, blue: 0.80), // blue
+                    Color(red: 0.48, green: 0.37, blue: 0.65), // purple
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .normalUsage:
+            LinearGradient(
+                colors: [Color(red: 0.85, green: 0.47, blue: 0.34)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
     }
 }
@@ -108,19 +126,20 @@ struct ClaudeMascot: View {
     private let body_ = Color(red: 0.80, green: 0.55, blue: 0.40)
     private let eye_ = Color(red: 0.15, green: 0.12, blue: 0.10)
 
-    // 12 columns x 10 rows grid
+    // 14 columns x 11 rows grid
     // 0 = empty, 1 = body, 2 = eye
     private let grid: [[Int]] = [
-        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 0: head top
-        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 1: head
-        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 2: head
-        [1,1,1,1,1,1,1,1,1,1,1,1],  // row 3: ears
-        [1,1,1,2,1,1,1,1,2,1,1,1],  // row 4: ears + eyes
-        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 5: body
-        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 6: body
-        [0,0,1,1,1,1,1,1,1,1,0,0],  // row 7: body
-        [0,0,1,1,0,1,1,0,1,1,0,0],  // row 8: 4 legs
-        [0,0,1,1,0,1,1,0,1,1,0,0],  // row 9: 4 legs
+        [0,1,1,1,1,1,1,1,1,1,1,1,1,0],  // row 0: head
+        [0,1,1,1,1,1,1,1,1,1,1,1,1,0],  // row 1: head
+        [0,1,1,1,1,1,1,1,1,1,1,1,1,0],  // row 2: head
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1],  // row 3: ears
+        [1,1,1,1,2,2,1,1,2,2,1,1,1,1],  // row 4: ears + eyes
+        [0,1,1,1,1,1,1,1,1,1,1,1,1,0],  // row 5: body
+        [0,1,1,1,1,1,1,1,1,1,1,1,1,0],  // row 6: body
+        [0,1,1,1,1,1,1,1,1,1,1,1,1,0],  // row 7: body
+        [0,1,1,0,1,1,0,0,1,1,0,1,1,0],  // row 8: 4 legs
+        [0,1,1,0,1,1,0,0,1,1,0,1,1,0],  // row 9: 4 legs
+        [0,1,1,0,1,1,0,0,1,1,0,1,1,0],  // row 10: 4 legs
     ]
 
     var body: some View {
@@ -135,7 +154,7 @@ struct ClaudeMascot: View {
                 }
             }
         }
-        .frame(width: pixelSize * 12, height: pixelSize * 10)
+        .frame(width: pixelSize * 14, height: pixelSize * 11)
     }
 }
 
@@ -206,7 +225,7 @@ struct SmallWidgetView: View {
 
     var body: some View {
         ZStack {
-            Rectangle().fill(entry.status.colour.gradient)
+            Rectangle().fill(entry.status.backgroundGradient)
 
             VStack(spacing: 4) {
                 HStack {
@@ -252,7 +271,7 @@ struct MediumWidgetView: View {
 
     var body: some View {
         ZStack {
-            Rectangle().fill(entry.status.colour.gradient)
+            Rectangle().fill(entry.status.backgroundGradient)
 
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
