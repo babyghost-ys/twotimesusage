@@ -4,6 +4,13 @@ struct CountdownView: View {
     let status: UsageStatus
     let countdown: (hours: Int, minutes: Int, seconds: Int)
 
+    private var countdownLabel: String {
+        if UsageStatus.hasPromotionEnded {
+            return "promotion ended"
+        }
+        return status.isDouble ? "until peak hours" : "until 2x resumes"
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 2) {
@@ -14,7 +21,7 @@ struct CountdownView: View {
                 digitBlock(String(format: "%02d", countdown.seconds))
             }
 
-            Text(status.isDouble ? "until peak hours" : "until 2x resumes")
+            Text(countdownLabel)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
         }

@@ -6,15 +6,19 @@ enum UsageStatus {
 
     private static let utc = TimeZone(identifier: "UTC") ?? .gmt
 
-    /// Promotion runs until end of 2026-03-27 UTC.
-    private static let promotionEnd: Date = {
+    /// Promotion runs until end of 2026-03-28 UTC (last day inclusive).
+    static let promotionEnd: Date = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = utc
-        guard let date = calendar.date(from: DateComponents(year: 2026, month: 3, day: 28, hour: 0, minute: 0, second: 0)) else {
+        guard let date = calendar.date(from: DateComponents(year: 2026, month: 3, day: 29, hour: 0, minute: 0, second: 0)) else {
             return .distantFuture
         }
         return date
     }()
+
+    static var hasPromotionEnded: Bool {
+        Date() >= promotionEnd
+    }
 
     static func current(at date: Date = .now) -> UsageStatus {
         if date >= promotionEnd { return .normalUsage }
@@ -31,7 +35,7 @@ enum UsageStatus {
     var label: String {
         switch self {
         case .doubleUsage: "2x Usage"
-        case .normalUsage: "Peak Hours"
+        case .normalUsage: Self.hasPromotionEnded ? "Normal" : "Peak Hours"
         }
     }
 

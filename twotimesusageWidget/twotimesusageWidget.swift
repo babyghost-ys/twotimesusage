@@ -10,17 +10,21 @@ enum UsageStatus {
 
     /// Peak hours are weekdays 12:00–18:00 UTC (= 5–11am PT / 12–6pm GMT).
     /// Outside peak hours and all weekends = 2x usage.
-    /// Promotion runs until end of 2026-03-27 UTC.
+    /// Promotion runs until end of 2026-03-28 UTC (last day inclusive).
     private static let utc = TimeZone(identifier: "UTC") ?? .gmt
 
-    private static let promotionEnd: Date = {
+    static let promotionEnd: Date = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = utc
-        guard let date = calendar.date(from: DateComponents(year: 2026, month: 3, day: 28, hour: 0, minute: 0, second: 0)) else {
+        guard let date = calendar.date(from: DateComponents(year: 2026, month: 3, day: 29, hour: 0, minute: 0, second: 0)) else {
             return .distantFuture
         }
         return date
     }()
+
+    static var hasPromotionEnded: Bool {
+        Date() >= promotionEnd
+    }
 
     static func current(at date: Date = .now) -> UsageStatus {
         if date >= promotionEnd { return .normalUsage }
@@ -41,14 +45,14 @@ enum UsageStatus {
     var label: String {
         switch self {
         case .doubleUsage: "2x Usage"
-        case .normalUsage: "Normal"
+        case .normalUsage: Self.hasPromotionEnded ? "Normal" : "Peak Hours"
         }
     }
 
     var subtitle: String {
         switch self {
         case .doubleUsage: "Double usage active"
-        case .normalUsage: "Peak hours"
+        case .normalUsage: Self.hasPromotionEnded ? "Normal usage" : "Peak hours"
         }
     }
 
@@ -130,6 +134,12 @@ struct UsageTimelineProvider: TimelineProvider {
                     entries.append(UsageEntry(date: adjusted, status: .current(at: adjusted)))
                 }
             }
+        }
+
+        // Add an entry at promotion end so the widget updates immediately
+        let promotionEnd = UsageStatus.promotionEnd
+        if promotionEnd > now {
+            entries.append(UsageEntry(date: promotionEnd, status: .current(at: promotionEnd)))
         }
 
         entries.sort { $0.date < $1.date }
@@ -223,6 +233,11 @@ struct ClaudeMascot: View {
 // MARK: - Shared Helpers
 
 func nextChangeDescription(at date: Date) -> String {
+    let promotionEnd = UsageStatus.promotionEnd
+
+    // After promotion ends, no more transitions
+    if date >= promotionEnd { return "Ended" }
+
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
 
@@ -231,7 +246,8 @@ func nextChangeDescription(at date: Date) -> String {
     let isWeekend = weekday == 1 || weekday == 7
 
     func timeUntil(from: Date, to: Date) -> String {
-        let interval = to.timeIntervalSince(from)
+        let target = min(to, promotionEnd)
+        let interval = target.timeIntervalSince(from)
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
         if hours > 0 { return "\(hours)h \(minutes)m" }
@@ -460,7 +476,7 @@ struct RectangularLockScreenView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .widgetAccentable()
 
-                Text(entry.status.isDouble ? "2x Usage Active" : "Peak Hours")
+                Text(entry.status.isDouble ? "2x Usage Active" : (UsageStatus.hasPromotionEnded ? "Normal" : "Peak Hours"))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
 
                 Text("Changes in ~\(nextChangeDescription(at: entry.date))")
@@ -478,7 +494,7 @@ struct InlineLockScreenView: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "sparkles")
-            Text(entry.status.isDouble ? "Claude 2x Active" : "Claude Peak Hours")
+            Text(entry.status.isDouble ? "Claude 2x Active" : (UsageStatus.hasPromotionEnded ? "Claude Normal" : "Claude Peak Hours"))
         }
         .containerBackground(.clear, for: .widget)
     }

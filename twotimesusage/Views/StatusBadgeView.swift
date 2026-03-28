@@ -4,7 +4,7 @@ struct StatusBadgeView: View {
     let status: UsageStatus
 
     var body: some View {
-        Text(status.isDouble ? "2x ACTIVE" : "PEAK HOURS")
+        Text(status.isDouble ? "2x ACTIVE" : (UsageStatus.hasPromotionEnded ? "NORMAL" : "PEAK HOURS"))
             .font(.system(size: 11, weight: .heavy, design: .rounded))
             .tracking(2)
             .foregroundStyle(.white)
