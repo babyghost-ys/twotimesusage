@@ -57,23 +57,29 @@ enum UsageStatus {
     }
 
     var backgroundGradient: LinearGradient {
+        if Self.hasPromotionEnded {
+            return LinearGradient(
+                colors: [Color(red: 0.96, green: 0.94, blue: 0.90)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
         switch self {
         case .doubleUsage:
-            // Ultrathink rainbow colours
-            LinearGradient(
+            return LinearGradient(
                 colors: [
-                    Color(red: 0.83, green: 0.27, blue: 0.17), // red
-                    Color(red: 0.91, green: 0.52, blue: 0.17), // orange
-                    Color(red: 0.91, green: 0.77, blue: 0.17), // yellow
-                    Color(red: 0.36, green: 0.67, blue: 0.29), // green
-                    Color(red: 0.29, green: 0.56, blue: 0.80), // blue
-                    Color(red: 0.48, green: 0.37, blue: 0.65), // purple
+                    Color(red: 0.83, green: 0.27, blue: 0.17),
+                    Color(red: 0.91, green: 0.52, blue: 0.17),
+                    Color(red: 0.91, green: 0.77, blue: 0.17),
+                    Color(red: 0.36, green: 0.67, blue: 0.29),
+                    Color(red: 0.29, green: 0.56, blue: 0.80),
+                    Color(red: 0.48, green: 0.37, blue: 0.65),
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .normalUsage:
-            LinearGradient(
+            return LinearGradient(
                 colors: [Color(red: 0.85, green: 0.47, blue: 0.34)],
                 startPoint: .top,
                 endPoint: .bottom
@@ -155,6 +161,7 @@ struct UsageTimelineProvider: TimelineProvider {
 struct ClaudeMascot: View {
     let size: CGFloat
     var isPeakHours: Bool = false
+    var isPromotionEnded: Bool = false
 
     private let bodyColour = Color(red: 0.80, green: 0.55, blue: 0.40)
     private let eyeColour = Color(red: 0.15, green: 0.12, blue: 0.10)
@@ -173,25 +180,18 @@ struct ClaudeMascot: View {
             bodyPath.addLine(to: CGPoint(x: 14 * s, y: 5 * s))
             bodyPath.addLine(to: CGPoint(x: 13 * s, y: 5 * s))
             bodyPath.addLine(to: CGPoint(x: 13 * s, y: 8 * s))
-            // Leg 4 (cols 11-12) — right edge continues from body
             bodyPath.addLine(to: CGPoint(x: 13 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 11 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 11 * s, y: 8 * s))
-            // Gap col 10
             bodyPath.addLine(to: CGPoint(x: 10 * s, y: 8 * s))
-            // Leg 3 (cols 8-9)
             bodyPath.addLine(to: CGPoint(x: 10 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 8 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 8 * s, y: 8 * s))
-            // Gap cols 6-7
             bodyPath.addLine(to: CGPoint(x: 6 * s, y: 8 * s))
-            // Leg 2 (cols 4-5)
             bodyPath.addLine(to: CGPoint(x: 6 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 4 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 4 * s, y: 8 * s))
-            // Gap col 3
             bodyPath.addLine(to: CGPoint(x: 3 * s, y: 8 * s))
-            // Leg 1 (cols 1-2)
             bodyPath.addLine(to: CGPoint(x: 3 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 1 * s, y: 11 * s))
             bodyPath.addLine(to: CGPoint(x: 1 * s, y: 8 * s))
@@ -203,28 +203,42 @@ struct ClaudeMascot: View {
 
             context.fill(bodyPath, with: .color(bodyColour))
 
-            let eyeStroke: CGFloat = 0.7 * s
-            var leftEye = Path()
-            var rightEye = Path()
-
-            if isPeakHours {
-                // Dash eyes: - on left, - on right
+            if isPromotionEnded {
+                // Dot eyes: calm, content
+                let dotRadius: CGFloat = 0.55 * s
+                let leftDot = Path(ellipseIn: CGRect(
+                    x: 4.0 * s - dotRadius, y: 4.5 * s - dotRadius,
+                    width: dotRadius * 2, height: dotRadius * 2
+                ))
+                let rightDot = Path(ellipseIn: CGRect(
+                    x: 10.0 * s - dotRadius, y: 4.5 * s - dotRadius,
+                    width: dotRadius * 2, height: dotRadius * 2
+                ))
+                context.fill(leftDot, with: .color(eyeColour))
+                context.fill(rightDot, with: .color(eyeColour))
+            } else if isPeakHours {
+                let eyeStroke: CGFloat = 0.7 * s
+                var leftEye = Path()
                 leftEye.move(to: CGPoint(x: 3.0 * s, y: 4.5 * s))
                 leftEye.addLine(to: CGPoint(x: 5.0 * s, y: 4.5 * s))
+                var rightEye = Path()
                 rightEye.move(to: CGPoint(x: 9.0 * s, y: 4.5 * s))
                 rightEye.addLine(to: CGPoint(x: 11.0 * s, y: 4.5 * s))
+                context.stroke(leftEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
+                context.stroke(rightEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
             } else {
-                // Chevron eyes: > on left, < on right
+                let eyeStroke: CGFloat = 0.7 * s
+                var leftEye = Path()
                 leftEye.move(to: CGPoint(x: 3.5 * s, y: 3.8 * s))
                 leftEye.addLine(to: CGPoint(x: 4.5 * s, y: 4.5 * s))
                 leftEye.addLine(to: CGPoint(x: 3.5 * s, y: 5.2 * s))
+                var rightEye = Path()
                 rightEye.move(to: CGPoint(x: 10.5 * s, y: 3.8 * s))
                 rightEye.addLine(to: CGPoint(x: 9.5 * s, y: 4.5 * s))
                 rightEye.addLine(to: CGPoint(x: 10.5 * s, y: 5.2 * s))
+                context.stroke(leftEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
+                context.stroke(rightEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
             }
-
-            context.stroke(leftEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
-            context.stroke(rightEye, with: .color(eyeColour), style: StrokeStyle(lineWidth: eyeStroke, lineCap: .square, lineJoin: .miter))
         }
         .frame(width: size, height: size / 14 * 11)
     }
@@ -314,32 +328,45 @@ struct SmallWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
     let entry: UsageEntry
 
+    private var ended: Bool { UsageStatus.hasPromotionEnded }
+
+    private var background: AnyShapeStyle {
+        if ended {
+            return AnyShapeStyle(colorScheme == .dark
+                ? Color(red: 0.10, green: 0.09, blue: 0.08)
+                : Color(red: 0.96, green: 0.94, blue: 0.90))
+        }
+        return entry.status.isDouble
+            ? AnyShapeStyle(entry.status.backgroundGradient)
+            : AnyShapeStyle(colorScheme == .dark ? Color.black : Color.white)
+    }
+
+    private var primaryText: Color {
+        ended ? Color(red: 0.15, green: 0.12, blue: 0.10) : (entry.status.isDouble ? .white : .primary)
+    }
+
     var body: some View {
         ZStack {
-            Rectangle().fill(
-                entry.status.isDouble
-                    ? AnyShapeStyle(entry.status.backgroundGradient)
-                    : AnyShapeStyle(colorScheme == .dark ? Color.black : Color.white)
-            )
+            Rectangle().fill(background)
 
             VStack(spacing: 4) {
                 HStack {
                     Text("Claude")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
+                        .foregroundStyle(primaryText.opacity(0.85))
                     Spacer()
                     Button(intent: RefreshUsageIntent()) {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(entry.status.isDouble ? .white.opacity(0.5) : .secondary)
+                            .foregroundStyle(primaryText.opacity(0.5))
                     }
                     .buttonStyle(.plain)
                 }
 
                 Spacer()
 
-                ClaudeMascot(size: 56, isPeakHours: !entry.status.isDouble)
-                    .opacity(0.5)
+                ClaudeMascot(size: 56, isPeakHours: !entry.status.isDouble && !ended, isPromotionEnded: ended)
+                    .opacity(ended ? 0.7 : 0.5)
 
                 Spacer()
 
@@ -347,17 +374,23 @@ struct SmallWidgetView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(entry.status.label)
                             .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundStyle(entry.status.isDouble ? .white : .primary)
+                            .foregroundStyle(primaryText)
                             .invalidatableContent()
 
-                        HStack(spacing: 4) {
-                            Text("Changes in ~")
+                        if ended {
+                            Text("Promotion ended")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.6) : .secondary)
-                            Text(nextChangeDescription(at: entry.date))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
-                                .invalidatableContent()
+                                .foregroundStyle(primaryText.opacity(0.5))
+                        } else {
+                            HStack(spacing: 4) {
+                                Text("Changes in ~")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(entry.status.isDouble ? .white.opacity(0.6) : .secondary)
+                                Text(nextChangeDescription(at: entry.date))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
+                                    .invalidatableContent()
+                            }
                         }
                     }
                     Spacer()
@@ -373,24 +406,37 @@ struct MediumWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
     let entry: UsageEntry
 
+    private var ended: Bool { UsageStatus.hasPromotionEnded }
+
+    private var background: AnyShapeStyle {
+        if ended {
+            return AnyShapeStyle(colorScheme == .dark
+                ? Color(red: 0.10, green: 0.09, blue: 0.08)
+                : Color(red: 0.96, green: 0.94, blue: 0.90))
+        }
+        return entry.status.isDouble
+            ? AnyShapeStyle(entry.status.backgroundGradient)
+            : AnyShapeStyle(colorScheme == .dark ? Color.black : Color.white)
+    }
+
+    private var primaryText: Color {
+        ended ? Color(red: 0.15, green: 0.12, blue: 0.10) : (entry.status.isDouble ? .white : .primary)
+    }
+
     var body: some View {
         ZStack {
-            Rectangle().fill(
-                entry.status.isDouble
-                    ? AnyShapeStyle(entry.status.backgroundGradient)
-                    : AnyShapeStyle(colorScheme == .dark ? Color.black : Color.white)
-            )
+            Rectangle().fill(background)
 
             VStack {
                 HStack {
                     Text("Claude")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
+                        .foregroundStyle(primaryText.opacity(0.85))
                     Spacer()
                     Button(intent: RefreshUsageIntent()) {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(entry.status.isDouble ? .white.opacity(0.5) : .secondary)
+                            .foregroundStyle(primaryText.opacity(0.5))
                     }
                     .buttonStyle(.plain)
                 }
@@ -401,24 +447,30 @@ struct MediumWidgetView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(entry.status.label)
                             .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(entry.status.isDouble ? .white : .primary)
+                            .foregroundStyle(primaryText)
                             .invalidatableContent()
 
-                        HStack(spacing: 4) {
-                            Text("Changes in ~")
+                        if ended {
+                            Text("Promotion ended")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.6) : .secondary)
-                            Text(nextChangeDescription(at: entry.date))
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
-                                .invalidatableContent()
+                                .foregroundStyle(primaryText.opacity(0.5))
+                        } else {
+                            HStack(spacing: 4) {
+                                Text("Changes in ~")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(entry.status.isDouble ? .white.opacity(0.6) : .secondary)
+                                Text(nextChangeDescription(at: entry.date))
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(entry.status.isDouble ? .white.opacity(0.85) : .primary.opacity(0.85))
+                                    .invalidatableContent()
+                            }
                         }
                     }
 
                     Spacer()
 
-                    ClaudeMascot(size: 70, isPeakHours: !entry.status.isDouble)
-                        .opacity(0.5)
+                    ClaudeMascot(size: 70, isPeakHours: !entry.status.isDouble && !ended, isPromotionEnded: ended)
+                        .opacity(ended ? 0.7 : 0.5)
                 }
             }
             .padding(14)
@@ -445,16 +497,17 @@ struct WidgetEntryView: View {
 
 struct CircularLockScreenView: View {
     let entry: UsageEntry
+    private var ended: Bool { UsageStatus.hasPromotionEnded }
 
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
 
             VStack(spacing: 1) {
-                Image(systemName: entry.status.isDouble ? "sparkles" : "clock")
+                Image(systemName: ended ? "checkmark.circle" : (entry.status.isDouble ? "sparkles" : "clock"))
                     .font(.system(size: 14, weight: .bold))
 
-                Text(entry.status.isDouble ? "2x" : "1x")
+                Text(ended ? "1x" : (entry.status.isDouble ? "2x" : "1x"))
                     .font(.system(size: 12, weight: .heavy, design: .rounded))
             }
         }
@@ -464,10 +517,11 @@ struct CircularLockScreenView: View {
 
 struct RectangularLockScreenView: View {
     let entry: UsageEntry
+    private var ended: Bool { UsageStatus.hasPromotionEnded }
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: entry.status.isDouble ? "sparkles" : "clock")
+            Image(systemName: ended ? "checkmark.circle" : (entry.status.isDouble ? "sparkles" : "clock"))
                 .font(.system(size: 20, weight: .semibold))
                 .frame(width: 24)
 
@@ -476,12 +530,19 @@ struct RectangularLockScreenView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .widgetAccentable()
 
-                Text(entry.status.isDouble ? "2x Usage Active" : (UsageStatus.hasPromotionEnded ? "Normal" : "Peak Hours"))
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-
-                Text("Changes in ~\(nextChangeDescription(at: entry.date))")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+                if ended {
+                    Text("Normal Usage")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text("Promotion ended")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(entry.status.isDouble ? "2x Usage Active" : "Peak Hours")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text("Changes in ~\(nextChangeDescription(at: entry.date))")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .containerBackground(.clear, for: .widget)
@@ -490,11 +551,16 @@ struct RectangularLockScreenView: View {
 
 struct InlineLockScreenView: View {
     let entry: UsageEntry
+    private var ended: Bool { UsageStatus.hasPromotionEnded }
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "sparkles")
-            Text(entry.status.isDouble ? "Claude 2x Active" : (UsageStatus.hasPromotionEnded ? "Claude Normal" : "Claude Peak Hours"))
+            Image(systemName: ended ? "checkmark.circle" : "sparkles")
+            if ended {
+                Text("Claude Normal Usage")
+            } else {
+                Text(entry.status.isDouble ? "Claude 2x Active" : "Claude Peak Hours")
+            }
         }
         .containerBackground(.clear, for: .widget)
     }
